@@ -30,10 +30,15 @@ export default function CafeCard({ cafe, isSelected, onClick }: CafeCardProps) {
               {cafe.name}
             </h3>
             <span className="flex-shrink-0 rounded-md bg-green-600/20 px-1.5 py-0.5 text-xs font-medium text-green-400">
-              ⭐ {cafe.rating}
+              {cafe.rating}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-zinc-400">{cafe.area} · {cafe.priceRange}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            {cafe.area} · {cafe.priceRange}
+            <span className={`ml-1 inline-block rounded px-1 py-0.5 text-[9px] font-medium ${cafe.type === "cafe" ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"}`}>
+              {cafe.type === "cafe" ? "CAFE" : "RESTAURANT"}
+            </span>
+          </p>
           <p className="mt-1 text-xs text-orange-300/80 italic">{cafe.vibe}</p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {cafe.cuisine.slice(0, 3).map((c) => (

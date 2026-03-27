@@ -35,7 +35,10 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
           </div>
 
           <p className="mt-1 text-sm text-zinc-400">
-            {cafe.area} · {cafe.priceRange}
+            {cafe.area} · {cafe.priceRange} ·{" "}
+            <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${cafe.type === "cafe" ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"}`}>
+              {cafe.type === "cafe" ? "Cafe" : "Restaurant"}
+            </span>
           </p>
 
           <p className="mt-3 text-sm italic text-orange-300">{cafe.highlight}</p>
@@ -55,6 +58,19 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
                   </span>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                Service
+              </p>
+              <p className="mt-1 text-sm text-zinc-300">
+                {cafe.dineInTakeaway === "both"
+                  ? "Dine-in & Takeaway"
+                  : cafe.dineInTakeaway === "dine-in"
+                  ? "Dine-in only"
+                  : "Takeaway only"}
+              </p>
             </div>
 
             <div>

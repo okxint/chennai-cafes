@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { cafes, Cafe } from "@/data/cafes";
 import Sidebar from "@/components/Sidebar";
@@ -10,6 +10,11 @@ const CafeMap = dynamic(() => import("@/components/Map"), { ssr: false });
 export default function Home() {
   const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [filteredCafes, setFilteredCafes] = useState<Cafe[]>(cafes);
+
+  const handleFilterChange = useCallback((filtered: Cafe[]) => {
+    setFilteredCafes(filtered);
+  }, []);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-zinc-950">
@@ -34,13 +39,14 @@ export default function Home() {
             setSelectedCafe(cafe);
             if (window.innerWidth < 768) setShowSidebar(false);
           }}
+          onFilterChange={handleFilterChange}
         />
       </div>
 
       {/* Map */}
       <div className="flex-1 relative">
         <CafeMap
-          cafes={cafes}
+          cafes={filteredCafes}
           selectedCafe={selectedCafe}
           onSelectCafe={(cafe) => {
             setSelectedCafe(cafe);
@@ -53,7 +59,11 @@ export default function Home() {
           <p className="text-xs font-medium text-zinc-400 mb-1.5">Chennai Cafes</p>
           <div className="flex items-center gap-2 text-[11px] text-zinc-500">
             <span className="inline-block h-3 w-3 rounded-full bg-orange-500"></span>
-            <span>{cafes.length} locations mapped</span>
+            <span>
+              {filteredCafes.length === cafes.length
+                ? `${cafes.length} locations mapped`
+                : `${filteredCafes.length} of ${cafes.length} shown`}
+            </span>
           </div>
         </div>
       </div>

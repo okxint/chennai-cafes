@@ -9,7 +9,7 @@ const CafeMap = dynamic(() => import("@/components/Map"), { ssr: false });
 
 export default function Home() {
   const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const [filteredCafes, setFilteredCafes] = useState<Cafe[]>(cafes);
 
   const handleFilterChange = useCallback((filtered: Cafe[]) => {
@@ -17,55 +17,47 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-950">
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setShowSidebar(!showSidebar)}
-        className="fixed top-4 left-4 z-30 rounded-lg bg-zinc-900 border border-zinc-700 p-2 text-white shadow-lg md:hidden"
-      >
-        {showSidebar ? "✕" : "☰"}
-      </button>
+    <div style={{ height: "100dvh", width: "100vw", overflow: "hidden", background: "var(--bg-primary)" }}>
+      <Sidebar
+        cafes={cafes}
+        selectedCafe={selectedCafe}
+        onSelectCafe={(cafe) => {
+          setSelectedCafe(cafe);
+          // On mobile, collapse sidebar when selecting
+          if (typeof window !== "undefined" && window.innerWidth < 768) {
+            setCollapsed(true);
+          }
+        }}
+        onFilterChange={handleFilterChange}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      />
 
-      {/* Sidebar */}
-      <div
-        className={`${
-          showSidebar ? "translate-x-0" : "-translate-x-full"
-        } fixed inset-y-0 left-0 z-20 w-[360px] transition-transform duration-300 md:relative md:translate-x-0`}
-      >
-        <Sidebar
-          cafes={cafes}
-          selectedCafe={selectedCafe}
-          onSelectCafe={(cafe) => {
-            setSelectedCafe(cafe);
-            if (window.innerWidth < 768) setShowSidebar(false);
-          }}
-          onFilterChange={handleFilterChange}
-        />
-      </div>
-
-      {/* Map */}
-      <div className="flex-1 relative">
+      <div className={`map-container ${collapsed ? "" : ""}`}>
         <CafeMap
           cafes={filteredCafes}
           selectedCafe={selectedCafe}
           onSelectCafe={(cafe) => {
             setSelectedCafe(cafe);
-            setShowSidebar(true);
+            setCollapsed(false);
           }}
         />
+      </div>
 
-        {/* Legend */}
-        <div className="absolute bottom-6 right-4 z-10 rounded-xl bg-zinc-900/90 backdrop-blur-sm border border-zinc-700 px-4 py-3 shadow-xl">
-          <p className="text-xs font-medium text-zinc-400 mb-1.5">Chennai Cafes</p>
-          <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-            <span className="inline-block h-3 w-3 rounded-full bg-orange-500"></span>
-            <span>
-              {filteredCafes.length === cafes.length
-                ? `${cafes.length} locations mapped`
-                : `${filteredCafes.length} of ${cafes.length} shown`}
-            </span>
-          </div>
-        </div>
+      {/* Vis badge */}
+      <div className="vis-badge">
+        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          ☕ Chennai Cafes
+        </p>
+        <p className="text-[11px] mt-0.5 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: "var(--accent)" }}
+          />
+          {filteredCafes.length === cafes.length
+            ? `${cafes.length} spots mapped`
+            : `${filteredCafes.length} of ${cafes.length} shown`}
+        </p>
       </div>
     </div>
   );

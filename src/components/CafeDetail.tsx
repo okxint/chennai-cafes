@@ -11,13 +11,17 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lng}`;
 
   return (
-    <div className="absolute inset-0 z-20 overflow-y-auto bg-zinc-950/95 backdrop-blur-sm">
+    <div
+      className="absolute inset-0 z-20 overflow-y-auto"
+      style={{ background: "rgba(7,8,13,0.97)", backdropFilter: "blur(8px)" }}
+    >
       <div className="p-4">
         <button
           onClick={onClose}
-          className="mb-3 flex items-center gap-1 text-sm text-zinc-400 hover:text-white transition-colors"
+          className="mb-3 flex items-center gap-1 text-sm transition-colors hover:opacity-80"
+          style={{ color: "var(--text-secondary)" }}
         >
-          <span>←</span> Back to list
+          ← Back
         </button>
 
         <img
@@ -28,76 +32,93 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
 
         <div className="mt-4">
           <div className="flex items-start justify-between">
-            <h2 className="text-xl font-bold text-white">{cafe.name}</h2>
-            <span className="rounded-lg bg-green-600/20 px-2 py-1 text-sm font-semibold text-green-400">
+            <h2 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
+              {cafe.name}
+            </h2>
+            <span
+              className="rounded-lg px-2 py-1 text-sm font-semibold"
+              style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}
+            >
               ⭐ {cafe.rating}
             </span>
           </div>
 
-          <p className="mt-1 text-sm text-zinc-400">
-            {cafe.area} · {cafe.priceRange} ·{" "}
-            <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${cafe.type === "cafe" ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"}`}>
+          <p className="mt-1 text-sm flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
+            {cafe.area} · {cafe.priceRange}
+            <span
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+              style={{
+                background: cafe.type === "cafe" ? "rgba(59,130,246,0.15)" : "rgba(245,158,11,0.15)",
+                color: cafe.type === "cafe" ? "#60a5fa" : "#fbbf24",
+              }}
+            >
               {cafe.type === "cafe" ? "Cafe" : "Restaurant"}
             </span>
           </p>
 
-          <p className="mt-3 text-sm italic text-orange-300">{cafe.highlight}</p>
+          <p className="mt-3 text-sm italic" style={{ color: "var(--accent)" }}>
+            {cafe.highlight}
+          </p>
 
           <div className="mt-4 space-y-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                Cuisine
-              </p>
-              <div className="mt-1 flex flex-wrap gap-1.5">
+            <DetailRow label="Cuisine">
+              <div className="flex flex-wrap gap-1.5">
                 {cafe.cuisine.map((c) => (
                   <span
                     key={c}
-                    className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-300"
+                    className="rounded-full px-2.5 py-1 text-xs"
+                    style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
                   >
                     {c}
                   </span>
                 ))}
               </div>
-            </div>
+            </DetailRow>
 
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                Service
-              </p>
-              <p className="mt-1 text-sm text-zinc-300">
+            <DetailRow label="Service">
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 {cafe.dineInTakeaway === "both"
-                  ? "Dine-in & Takeaway"
+                  ? "🪑 Dine-in & 📦 Takeaway"
                   : cafe.dineInTakeaway === "dine-in"
-                  ? "Dine-in only"
-                  : "Takeaway only"}
+                  ? "🪑 Dine-in only"
+                  : "📦 Takeaway only"}
               </p>
-            </div>
+            </DetailRow>
 
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                Hours
-              </p>
-              <p className="mt-1 text-sm text-zinc-300">{cafe.hours}</p>
-            </div>
+            <DetailRow label="Hours">
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{cafe.hours}</p>
+            </DetailRow>
 
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                Address
-              </p>
-              <p className="mt-1 text-sm text-zinc-300">{cafe.address}</p>
-            </div>
+            <DetailRow label="Address">
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{cafe.address}</p>
+            </DetailRow>
           </div>
 
           <a
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ background: "var(--accent)" }}
           >
-            <span>📍</span> Open in Google Maps
+            📍 Open in Google Maps
           </a>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p
+        className="text-[10px] font-medium uppercase tracking-widest"
+        style={{ color: "var(--text-muted)" }}
+      >
+        {label}
+      </p>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }

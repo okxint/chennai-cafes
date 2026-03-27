@@ -10,16 +10,27 @@ interface SidebarProps {
   selectedCafe: Cafe | null;
   onSelectCafe: (cafe: Cafe) => void;
   onFilterChange?: (filtered: Cafe[]) => void;
+  collapsed: boolean;
+  onToggle: () => void;
 }
 
 type TypeFilter = "all" | "cafe" | "restaurant";
-type ServiceFilter = "all" | "dine-in" | "takeaway" | "both";
-type CuisineFilter = "all" | "south" | "north" | "chinese" | "continental" | "italian" | "seafood" | "biryani" | "desserts";
+type ServiceFilter = "all" | "dine-in" | "takeaway";
+type CuisineFilter =
+  | "all"
+  | "south"
+  | "north"
+  | "chinese"
+  | "continental"
+  | "italian"
+  | "seafood"
+  | "biryani"
+  | "desserts";
 
 const CUISINE_FILTER_MAP: Record<Exclude<CuisineFilter, "all">, string[]> = {
   south: ["South Indian", "Tiffin", "Filter Coffee", "Idli", "Chettinad", "Kerala", "Karnataka", "Kongunadu", "Andhra", "Mangalorean"],
   north: ["North Indian", "Mughlai", "Tandoori", "North West Frontier", "Hyderabadi"],
-  chinese: ["Chinese", "Pan-Asian", "Asian", "Oriental", "Thai", "Japanese", "Malaysian"],
+  chinese: ["Chinese", "Pan-Asian", "Asian", "Oriental", "Thai", "Japanese", "Malaysian", "Korean"],
   continental: ["Continental", "European", "American", "Mediterranean"],
   italian: ["Italian", "Pizza", "Pasta"],
   seafood: ["Seafood"],
@@ -27,7 +38,14 @@ const CUISINE_FILTER_MAP: Record<Exclude<CuisineFilter, "all">, string[]> = {
   desserts: ["Desserts", "Chocolate", "Bakery", "Sweets"],
 };
 
-export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterChange }: SidebarProps) {
+export default function Sidebar({
+  cafes,
+  selectedCafe,
+  onSelectCafe,
+  onFilterChange,
+  collapsed,
+  onToggle,
+}: SidebarProps) {
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState<string>("all");
   const [priceFilter, setPriceFilter] = useState<string>("all");
@@ -38,18 +56,19 @@ export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterCha
 
   const filtered = useMemo(() => {
     return cafes.filter((cafe) => {
+      const q = search.toLowerCase();
       const matchesSearch =
-        !search ||
-        cafe.name.toLowerCase().includes(search.toLowerCase()) ||
-        cafe.area.toLowerCase().includes(search.toLowerCase()) ||
-        cafe.cuisine.some((c) => c.toLowerCase().includes(search.toLowerCase()));
+        !q ||
+        cafe.name.toLowerCase().includes(q) ||
+        cafe.area.toLowerCase().includes(q) ||
+        cafe.cuisine.some((c) => c.toLowerCase().includes(q));
       const matchesArea = areaFilter === "all" || cafe.area === areaFilter;
       const matchesPrice = priceFilter === "all" || cafe.priceRange === priceFilter;
       const matchesType = typeFilter === "all" || cafe.type === typeFilter;
       const matchesService =
         serviceFilter === "all" ||
         cafe.dineInTakeaway === serviceFilter ||
-        (serviceFilter !== "both" && cafe.dineInTakeaway === "both");
+        cafe.dineInTakeaway === "both";
       const matchesCuisine =
         cuisineFilter === "all" ||
         cafe.cuisine.some((c) =>
@@ -84,60 +103,91 @@ export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterCha
   };
 
   return (
-    <div className="relative flex h-full flex-col bg-zinc-950 border-r border-zinc-800">
+    <div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      {/* Toggle button */}
+      <button onClick={onToggle} className="sidebar-toggle" aria-label={collapsed ? "Open sidebar" : "Close sidebar"}>
+        <span className="hidden md:inline">{collapsed ? "▸" : "◂"}</span>
+        <span className="md:hidden">{collapsed ? "▴" : "▾"}</span>
+      </button>
+
+      {/* Mobile drag handle */}
+      <div className="sidebar-drag-handle hidden" onClick={onToggle} />
+
       {/* Header */}
-      <div className="border-b border-zinc-800 p-4 pb-3">
-        <div className="flex items-center gap-2">
+      <div style={{ borderBottom: "1px solid var(--border)", padding: "16px 16px 12px" }}>
+        <div className="flex items-center gap-2.5">
           <span className="text-2xl">☕</span>
           <div>
-            <h1 className="text-lg font-bold text-white tracking-tight">chennai.cafes</h1>
-            <p className="text-[11px] text-zinc-500">
-              {cafes.length} spots mapped · Redhills to Chengalpattu
+            <h1 className="text-base font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+              chennai.cafes
+            </h1>
+            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              {cafes.length} spots · Redhills to Chengalpattu
             </p>
           </div>
         </div>
 
         {/* Search */}
-        <div className="mt-3">
-          <input
-            type="text"
-            placeholder="Search by name, area, or cuisine..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Search by name, area, or cuisine..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mt-3 w-full rounded-xl px-3 py-2 text-sm outline-none transition-colors"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            color: "var(--text-primary)",
+          }}
+        />
 
-        {/* Type toggle: All / Cafes / Restaurants */}
-        <div className="mt-2 flex rounded-lg bg-zinc-900 p-0.5">
+        {/* Type pills */}
+        <div className="filter-pills mt-2.5">
           {(["all", "cafe", "restaurant"] as TypeFilter[]).map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                typeFilter === t
-                  ? "bg-orange-500 text-white"
-                  : "text-zinc-400 hover:text-white"
-              }`}
+              className={`filter-pill ${typeFilter === t ? "active" : ""}`}
             >
-              {t === "all" ? "All" : t === "cafe" ? "Cafes" : "Restaurants"}
+              {t === "all" ? "All" : t === "cafe" ? "☕ Cafes" : "🍽️ Restaurants"}
             </button>
           ))}
         </div>
 
-        {/* Service toggle: Dine-in / Takeaway */}
-        <div className="mt-2 flex rounded-lg bg-zinc-900 p-0.5">
+        {/* Service pills */}
+        <div className="filter-pills mt-2">
           {(["all", "dine-in", "takeaway"] as ServiceFilter[]).map((s) => (
             <button
               key={s}
               onClick={() => setServiceFilter(s)}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                serviceFilter === s
-                  ? "bg-orange-500 text-white"
-                  : "text-zinc-400 hover:text-white"
-              }`}
+              className={`filter-pill ${serviceFilter === s ? "active" : ""}`}
             >
-              {s === "all" ? "All Service" : s === "dine-in" ? "Dine-in" : "Takeaway"}
+              {s === "all" ? "All Service" : s === "dine-in" ? "🪑 Dine-in" : "📦 Takeaway"}
+            </button>
+          ))}
+        </div>
+
+        {/* Cuisine pills */}
+        <div className="filter-pills mt-2">
+          {(
+            [
+              ["all", "All Cuisine"],
+              ["south", "South Indian"],
+              ["north", "North Indian"],
+              ["chinese", "Chinese/Asian"],
+              ["continental", "Continental"],
+              ["italian", "Italian"],
+              ["seafood", "Seafood"],
+              ["biryani", "Biryani"],
+              ["desserts", "Desserts"],
+            ] as [CuisineFilter, string][]
+          ).map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => setCuisineFilter(val)}
+              className={`filter-pill ${cuisineFilter === val ? "active" : ""}`}
+            >
+              {label}
             </button>
           ))}
         </div>
@@ -147,19 +197,19 @@ export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterCha
           <select
             value={areaFilter}
             onChange={(e) => setAreaFilter(e.target.value)}
-            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-orange-500"
+            className="flex-1 rounded-lg px-2 py-1.5 text-xs outline-none"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
           >
             <option value="all">All Areas</option>
-            {areas.map((area) => (
-              <option key={area} value={area}>
-                {area}
-              </option>
+            {areas.map((a) => (
+              <option key={a} value={a}>{a}</option>
             ))}
           </select>
           <select
             value={priceFilter}
             onChange={(e) => setPriceFilter(e.target.value)}
-            className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-orange-500"
+            className="rounded-lg px-2 py-1.5 text-xs outline-none"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
           >
             <option value="all">Any Price</option>
             <option value="₹">₹ Budget</option>
@@ -168,38 +218,23 @@ export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterCha
             <option value="₹₹₹₹">₹₹₹₹ Luxury</option>
           </select>
         </div>
-
-        {/* Cuisine filter */}
-        <div className="mt-2">
-          <select
-            value={cuisineFilter}
-            onChange={(e) => setCuisineFilter(e.target.value as CuisineFilter)}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-orange-500"
-          >
-            <option value="all">All Cuisines</option>
-            <option value="south">South Indian</option>
-            <option value="north">North Indian / Mughlai</option>
-            <option value="chinese">Chinese / Asian</option>
-            <option value="continental">Continental / European</option>
-            <option value="italian">Italian</option>
-            <option value="seafood">Seafood</option>
-            <option value="biryani">Biryani / Arabian</option>
-            <option value="desserts">Desserts / Bakery</option>
-          </select>
-        </div>
       </div>
 
       {/* Stats bar */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
-        <span className="text-xs text-zinc-500">
+      <div
+        className="flex items-center justify-between px-4 py-2"
+        style={{ borderBottom: "1px solid var(--border)" }}
+      >
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
           {filtered.length} spot{filtered.length !== 1 ? "s" : ""} found
         </span>
         {activeFilters > 0 && (
           <button
             onClick={clearFilters}
-            className="text-[11px] text-orange-400 hover:text-orange-300 transition-colors"
+            className="text-[11px] transition-colors hover:opacity-80"
+            style={{ color: "var(--accent)" }}
           >
-            Clear filters ({activeFilters})
+            Clear ({activeFilters})
           </button>
         )}
       </div>
@@ -217,13 +252,10 @@ export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterCha
             />
           ))}
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+          <div className="flex flex-col items-center justify-center py-12" style={{ color: "var(--text-muted)" }}>
             <span className="text-3xl mb-2">🔍</span>
             <p className="text-sm">No spots match your filters</p>
-            <button
-              onClick={clearFilters}
-              className="mt-2 text-xs text-orange-400 hover:text-orange-300"
-            >
+            <button onClick={clearFilters} className="mt-2 text-xs" style={{ color: "var(--accent)" }}>
               Clear all filters
             </button>
           </div>
@@ -231,25 +263,15 @@ export default function Sidebar({ cafes, selectedCafe, onSelectCafe, onFilterCha
       </div>
 
       {/* Footer */}
-      <div className="border-t border-zinc-800 px-4 py-2">
-        <p className="text-[10px] text-zinc-600 text-center">
+      <div className="px-4 py-2 text-center" style={{ borderTop: "1px solid var(--border)" }}>
+        <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
           Built by{" "}
-          <a
-            href="https://github.com/okxint"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-zinc-400 hover:text-orange-400 transition-colors"
-          >
+          <a href="https://github.com/okxint" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity" style={{ color: "var(--text-secondary)" }}>
             @okxint
           </a>
           {" · "}
-          <a
-            href="https://github.com/okxint/chennai-cafes"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-zinc-400 hover:text-orange-400 transition-colors"
-          >
-            GitHub
+          <a href="https://github.com/okxint/chennai-cafes" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity" style={{ color: "var(--text-secondary)" }}>
+            Source
           </a>
         </p>
       </div>

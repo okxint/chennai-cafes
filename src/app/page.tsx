@@ -195,19 +195,17 @@ export default function Home() {
         />
       </div>
 
-      {/* Vis badge */}
+      {/* Vis badge — darkstores style */}
       <div className="vis-badge">
-        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          ☕ Chennai Cafes
+        <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
+          In view <span style={{ fontSize: 16 }}>{filteredCafes.length}</span>
         </p>
-        <p className="text-[11px] mt-0.5 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ background: "var(--accent)" }}
-          />
-          {filteredCafes.length === cafes.length
-            ? `${cafes.length} spots mapped`
-            : `${filteredCafes.length} of ${cafes.length} shown`}
+        <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#3b82f6" }} />
+          {filteredCafes.filter((c) => c.type === "cafe").length} Cafes
+          <span style={{ margin: "0 2px" }}>|</span>
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#f59e0b" }} />
+          {filteredCafes.filter((c) => c.type === "restaurant").length} Restaurants
         </p>
       </div>
 

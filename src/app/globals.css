@@ -159,10 +159,54 @@ body {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 10px 14px;
   z-index: 20;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(12px);
+}
+
+/* ==================== MAP LEGEND ==================== */
+.map-legend {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  background: rgba(15, 16, 24, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+}
+
+/* ==================== CLUSTER OVERRIDES ==================== */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out !important;
+}
+
+.marker-cluster {
+  background: none !important;
+  border: none !important;
+}
+
+.marker-cluster div {
+  background: none !important;
+}
+
+/* Zoom controls dark theme */
+.leaflet-control-zoom {
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-control-zoom a {
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
 }
 
 /* ==================== SCROLLBAR ==================== */
@@ -315,6 +359,20 @@ body {
 
   .vis-badge p {
     font-size: 10px !important;
+  }
+
+  .map-legend {
+    top: 10px;
+    right: 10px;
+    padding: 6px 10px;
+  }
+
+  /* Bigger zoom controls on mobile for touch */
+  .leaflet-control-zoom a {
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    font-size: 20px !important;
   }
 }
 

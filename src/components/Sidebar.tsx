@@ -181,6 +181,13 @@ export default function Sidebar({
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              onClick={onMeetUp}
+              className="rounded-lg px-2 py-1 text-[10px] font-semibold hover:opacity-90 transition-opacity"
+              style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.4)", color: "#a78bfa" }}
+            >
+              🤝 Meet Up
+            </button>
+            <button
               onClick={() => setFilter("openNow", !filters.openNow)}
               className={`filter-pill ${filters.openNow ? "active" : ""}`}
               style={{ fontSize: 10, padding: "3px 8px" }}
@@ -334,13 +341,6 @@ export default function Sidebar({
           {sorted.length} spot{sorted.length !== 1 ? "s" : ""}
         </span>
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={onMeetUp}
-            className="text-[10px] px-2 py-0.5 rounded-lg transition-colors hover:opacity-80"
-            style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#a78bfa" }}
-          >
-            🤝 Meet Up
-          </button>
           <button
             onClick={onSurpriseMe}
             className="text-[10px] px-2 py-0.5 rounded-lg transition-colors hover:opacity-80"

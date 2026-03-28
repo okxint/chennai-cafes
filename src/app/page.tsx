@@ -244,17 +244,18 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Meet Up overlay */}
+      {/* Meet Up overlay — full screen on mobile, panel on desktop */}
       {showMeetUp && (
-        <div className="fixed inset-0 z-40">
+        <div className="fixed inset-0 z-40 flex">
+          {/* Backdrop — desktop only */}
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 hidden md:block"
             style={{ background: "rgba(0,0,0,0.5)" }}
             onClick={() => setShowMeetUp(false)}
           />
           <div
-            className="absolute left-0 top-0 bottom-0 overflow-hidden"
-            style={{ width: "min(420px, 100vw)" }}
+            className="relative z-10 w-full md:w-[420px] h-full overflow-hidden"
+            style={{ background: "var(--bg-surface)" }}
           >
             <MeetUp
               cafes={cafes}

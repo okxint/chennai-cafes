@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Cafe, areas } from "@/data/cafes";
 import { haversineKm } from "@/lib/utils";
 
@@ -25,10 +25,18 @@ interface MeetUpResult {
   distances: number[];
 }
 
+interface SearchSuggestion {
+  label: string;
+  sublabel: string;
+  lat: number;
+  lng: number;
+  type: "place" | "area";
+}
+
 const COLORS = ["#3b82f6", "#f59e0b", "#ef4444", "#22c55e", "#a855f7"];
 const FRIEND_LABELS = ["Friend 1", "Friend 2", "Friend 3", "Friend 4", "Friend 5"];
 
-// Build area → avg coordinates map from cafe data
+// Build area → avg coordinates map
 function buildAreaCoords(cafes: Cafe[]): Map<string, { lat: number; lng: number }> {
   const areaMap = new Map<string, { latSum: number; lngSum: number; count: number }>();
   cafes.forEach((c) => {
@@ -50,53 +58,128 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightIdx, setHighlightIdx] = useState(-1);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const areaCoords = useMemo(() => buildAreaCoords(cafes), [cafes]);
 
-  // Filter suggestions based on input
-  const suggestions = useMemo(() => {
-    if (!inputValue.trim()) return areas.slice(0, 12);
-    const q = inputValue.toLowerCase();
-    return areas.filter((a) => a.toLowerCase().includes(q)).slice(0, 8);
-  }, [inputValue]);
+  // Get area-based suggestions (instant, no API)
+  const getAreaSuggestions = useCallback(
+    (query: string): SearchSuggestion[] => {
+      const q = query.toLowerCase();
+      return areas
+        .filter((a) => a.toLowerCase().includes(q))
+        .slice(0, 4)
+        .map((a) => ({
+          label: a,
+          sublabel: `${cafes.filter((c) => c.area === a).length} spots in area`,
+          lat: areaCoords.get(a)?.lat || 13.04,
+          lng: areaCoords.get(a)?.lng || 80.24,
+          type: "area" as const,
+        }));
+    },
+    [areaCoords, cafes]
+  );
 
-  // Auto-show results when we have 2+ locations
-  const results = useMemo<MeetUpResult[]>(() => {
-    if (locations.length < 2) return [];
-
-    const scored = cafes.map((cafe) => {
-      const distances = locations.map((loc) =>
-        haversineKm(loc.lat, loc.lng, cafe.lat, cafe.lng)
+  // Geocode via Nominatim (free OSM API)
+  const searchPlaces = useCallback(async (query: string) => {
+    if (query.length < 3) return;
+    setSearching(true);
+    try {
+      const encoded = encodeURIComponent(`${query}, Chennai, India`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&bounded=1&viewbox=79.9,13.3,80.4,12.5&addressdetails=1`,
+        { headers: { "Accept-Language": "en" } }
       );
-      const avgDist = distances.reduce((s, d) => s + d, 0) / distances.length;
-      const maxDist = Math.max(...distances);
-      return { cafe, avgDist, maxDist, distances };
-    });
+      const data = await res.json();
 
-    scored.sort((a, b) => {
-      const fairDiff = a.maxDist - b.maxDist;
-      if (Math.abs(fairDiff) > 0.5) return fairDiff;
-      const avgDiff = a.avgDist - b.avgDist;
-      if (Math.abs(avgDiff) > 0.3) return avgDiff;
-      return b.cafe.rating - a.cafe.rating;
-    });
+      const placeSuggestions: SearchSuggestion[] = data
+        .filter((r: any) => {
+          const lat = parseFloat(r.lat);
+          const lng = parseFloat(r.lon);
+          // Only show results within Chennai metro bounds
+          return lat >= 12.5 && lat <= 13.35 && lng >= 79.9 && lng <= 80.4;
+        })
+        .map((r: any) => {
+          // Build a clean label
+          const parts = r.display_name.split(",").map((s: string) => s.trim());
+          const label = parts[0];
+          const sublabel = parts.slice(1, 3).join(", ");
+          return {
+            label,
+            sublabel,
+            lat: parseFloat(r.lat),
+            lng: parseFloat(r.lon),
+            type: "place" as const,
+          };
+        });
 
-    return scored.slice(0, 10);
-  }, [locations, cafes]);
+      // Merge with area suggestions (areas first, then places, deduplicated)
+      const areaSugs = getAreaSuggestions(query);
+      const seen = new Set(areaSugs.map((s) => s.label.toLowerCase()));
+      const merged = [
+        ...areaSugs,
+        ...placeSuggestions.filter((p: SearchSuggestion) => !seen.has(p.label.toLowerCase())),
+      ].slice(0, 8);
 
-  const addArea = (areaName: string) => {
-    const coords = areaCoords.get(areaName);
-    if (!coords) return;
+      setSuggestions(merged);
+      setShowSuggestions(true);
+    } catch {
+      // Fallback to area-only suggestions
+      setSuggestions(getAreaSuggestions(query));
+    } finally {
+      setSearching(false);
+    }
+  }, [getAreaSuggestions]);
+
+  // Debounced search
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    setHighlightIdx(-1);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!value.trim()) {
+      // Show popular areas when empty
+      setSuggestions(
+        ["Adyar", "T. Nagar", "Anna Nagar", "Velachery", "Besant Nagar", "Nungambakkam", "Mylapore", "Guindy"]
+          .filter((a) => areas.includes(a))
+          .map((a) => ({
+            label: a,
+            sublabel: `${cafes.filter((c) => c.area === a).length} spots`,
+            lat: areaCoords.get(a)?.lat || 13.04,
+            lng: areaCoords.get(a)?.lng || 80.24,
+            type: "area" as const,
+          }))
+      );
+      setShowSuggestions(true);
+      return;
+    }
+
+    // Instant area matches
+    const areaSugs = getAreaSuggestions(value);
+    setSuggestions(areaSugs);
+    setShowSuggestions(true);
+
+    // Debounced geocode for exact places
+    debounceRef.current = setTimeout(() => {
+      searchPlaces(value);
+    }, 400);
+  };
+
+  const addLocation = (suggestion: SearchSuggestion) => {
     if (locations.length >= 5) return;
     setLocations((prev) => [
       ...prev,
-      { lat: coords.lat, lng: coords.lng, label: areaName },
+      { lat: suggestion.lat, lng: suggestion.lng, label: suggestion.label },
     ]);
     setInputValue("");
     setShowSuggestions(false);
     setHighlightIdx(-1);
+    setSuggestions([]);
   };
 
   const addMyLocation = () => {
@@ -107,7 +190,6 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
     if (locations.length >= 5) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        // Find nearest area name
         let nearestArea = "Your Location";
         let nearestDist = Infinity;
         areaCoords.forEach((coords, name) => {
@@ -119,11 +201,7 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
         });
         setLocations((prev) => [
           ...prev,
-          {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            label: `📍 ${nearestArea}`,
-          },
+          { lat: pos.coords.latitude, lng: pos.coords.longitude, label: `📍 Near ${nearestArea}` },
         ]);
         showToast(`Added your location (near ${nearestArea})`);
       },
@@ -146,9 +224,9 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (highlightIdx >= 0 && suggestions[highlightIdx]) {
-        addArea(suggestions[highlightIdx]);
+        addLocation(suggestions[highlightIdx]);
       } else if (suggestions.length > 0) {
-        addArea(suggestions[0]);
+        addLocation(suggestions[0]);
       }
     } else if (e.key === "Escape") {
       setShowSuggestions(false);
@@ -170,6 +248,27 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Auto-show results when 2+ locations
+  const results = useMemo<MeetUpResult[]>(() => {
+    if (locations.length < 2) return [];
+    const scored = cafes.map((cafe) => {
+      const distances = locations.map((loc) =>
+        haversineKm(loc.lat, loc.lng, cafe.lat, cafe.lng)
+      );
+      const avgDist = distances.reduce((s, d) => s + d, 0) / distances.length;
+      const maxDist = Math.max(...distances);
+      return { cafe, avgDist, maxDist, distances };
+    });
+    scored.sort((a, b) => {
+      const fairDiff = a.maxDist - b.maxDist;
+      if (Math.abs(fairDiff) > 0.5) return fairDiff;
+      const avgDiff = a.avgDist - b.avgDist;
+      if (Math.abs(avgDiff) > 0.3) return avgDiff;
+      return b.cafe.rating - a.cafe.rating;
+    });
+    return scored.slice(0, 10);
+  }, [locations, cafes]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined" || locations.length < 2) return "";
@@ -248,7 +347,7 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
             🤝 Meet in the Middle
           </h2>
           <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Add 2-5 locations — we'll find the fairest spot for everyone
+            Search any place, address, or landmark in Chennai
           </p>
         </div>
 
@@ -280,7 +379,7 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
           </div>
         )}
 
-        {/* Input with autocomplete */}
+        {/* Search input with autocomplete */}
         {locations.length < 5 && (
           <div className="mb-4">
             <div className="relative">
@@ -290,14 +389,10 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
                     ref={inputRef}
                     type="text"
                     value={inputValue}
-                    onChange={(e) => {
-                      setInputValue(e.target.value);
-                      setShowSuggestions(true);
-                      setHighlightIdx(-1);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onFocus={() => handleInputChange(inputValue)}
                     onKeyDown={handleKeyDown}
-                    placeholder={`Add ${FRIEND_LABELS[locations.length] || "location"}...`}
+                    placeholder={`Search place, address, landmark...`}
                     className="w-full rounded-lg px-3 py-2.5 text-sm outline-none"
                     style={{
                       background: "var(--bg-card)",
@@ -316,25 +411,44 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
                         background: "var(--bg-card)",
                         border: "1px solid var(--border)",
                         boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-                        maxHeight: 220,
+                        maxHeight: 260,
                         overflowY: "auto",
                       }}
                     >
-                      {suggestions.map((area, i) => (
+                      {searching && (
+                        <div className="px-3 py-2 text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          Searching places...
+                        </div>
+                      )}
+                      {suggestions.map((s, i) => (
                         <button
-                          key={area}
-                          onClick={() => addArea(area)}
-                          className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors"
+                          key={`${s.type}-${s.label}-${i}`}
+                          onClick={() => addLocation(s)}
+                          className="w-full text-left px-3 py-2 flex items-start gap-2 transition-colors"
                           style={{
-                            color: "var(--text-primary)",
                             background: highlightIdx === i ? "var(--bg-hover)" : "transparent",
                           }}
                           onMouseEnter={() => setHighlightIdx(i)}
                         >
-                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>📍</span>
-                          {area}
-                          <span className="ml-auto text-[10px]" style={{ color: "var(--text-muted)" }}>
-                            {cafes.filter((c) => c.area === area).length} spots
+                          <span className="text-xs mt-0.5 flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                            {s.type === "area" ? "📍" : "🏠"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
+                              {s.label}
+                            </p>
+                            <p className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
+                              {s.sublabel}
+                            </p>
+                          </div>
+                          <span
+                            className="ml-auto text-[9px] mt-0.5 rounded px-1 py-px flex-shrink-0"
+                            style={{
+                              background: s.type === "area" ? "rgba(249,115,22,0.15)" : "rgba(59,130,246,0.15)",
+                              color: s.type === "area" ? "var(--accent)" : "#60a5fa",
+                            }}
+                          >
+                            {s.type === "area" ? "AREA" : "PLACE"}
                           </span>
                         </button>
                       ))}
@@ -346,43 +460,22 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
                   onClick={addMyLocation}
                   className="rounded-lg px-3 py-2.5 text-xs font-medium hover:opacity-90 flex-shrink-0"
                   style={{ background: "var(--bg-hover)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                  title="Use GPS location"
                 >
                   📍 GPS
                 </button>
               </div>
-
-              {/* Quick area chips */}
-              {!inputValue && !showSuggestions && locations.length === 0 && (
-                <div className="mt-2">
-                  <p className="text-[10px] mb-1.5" style={{ color: "var(--text-muted)" }}>Popular areas:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Adyar", "T. Nagar", "Anna Nagar", "Velachery", "Besant Nagar", "Nungambakkam", "Mylapore", "OMR"].map((area) => (
-                      <button
-                        key={area}
-                        onClick={() => {
-                          const match = areas.find((a) => a.startsWith(area)) || area;
-                          addArea(match);
-                        }}
-                        className="rounded-full px-2.5 py-1 text-[10px] font-medium hover:opacity-80 transition-colors"
-                        style={{ background: "var(--bg-hover)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-                      >
-                        {area}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--text-muted)" }}>
               {locations.length < 2
                 ? `Add ${2 - locations.length} more to find middle ground`
-                : `${5 - locations.length} more can be added`}
+                : `${5 - locations.length} more can be added · Try addresses, malls, stations`}
             </p>
           </div>
         )}
 
-        {/* Results — auto-show when 2+ locations */}
+        {/* Results */}
         {results.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -440,7 +533,6 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
                           {r.cafe.type === "cafe" ? "Cafe" : "Restaurant"}
                         </span>
                       </p>
-                      {/* Distance per person */}
                       <div className="flex flex-wrap gap-1 mt-1">
                         {r.distances.map((d, j) => (
                           <span
@@ -452,7 +544,7 @@ export default function MeetUp({ cafes, onSelectCafe, onClose, showToast, initia
                               border: `1px solid ${COLORS[j % COLORS.length]}30`,
                             }}
                           >
-                            {locations[j]?.label?.replace("📍 ", "").split(" ")[0]}: {d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`}
+                            {locations[j]?.label?.replace("📍 Near ", "").split(",")[0]}: {d < 1 ? `${Math.round(d * 1000)}m` : `${d.toFixed(1)}km`}
                           </span>
                         ))}
                       </div>

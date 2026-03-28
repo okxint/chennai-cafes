@@ -23,6 +23,7 @@ interface SidebarProps {
   onNearMe: () => void;
   onSurpriseMe: () => void;
   showToast: (msg: string) => void;
+  onMeetUp: () => void;
 }
 
 type CuisineFilter =
@@ -68,6 +69,7 @@ export default function Sidebar({
   onNearMe,
   onSurpriseMe,
   showToast,
+  onMeetUp,
 }: SidebarProps) {
   const [showDetail, setShowDetail] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
@@ -331,7 +333,14 @@ export default function Sidebar({
         <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
           {sorted.length} spot{sorted.length !== 1 ? "s" : ""}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onMeetUp}
+            className="text-[10px] px-2 py-0.5 rounded-lg transition-colors hover:opacity-80"
+            style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#a78bfa" }}
+          >
+            🤝 Meet Up
+          </button>
           <button
             onClick={onSurpriseMe}
             className="text-[10px] px-2 py-0.5 rounded-lg transition-colors hover:opacity-80"

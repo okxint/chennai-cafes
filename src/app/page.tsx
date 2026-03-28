@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { cafes, Cafe } from "@/data/cafes";
 import Sidebar from "@/components/Sidebar";
+import MeetUp from "@/components/MeetUp";
 import Toast from "@/components/Toast";
 import { getFavorites, toggleFavorite, haversineKm } from "@/lib/utils";
 
@@ -35,8 +36,12 @@ const DEFAULT_FILTERS: Filters = {
   sort: "rating",
 };
 
-function readFiltersFromURL(): { filters: Partial<Filters>; cafeId: number | null } {
-  if (typeof window === "undefined") return { filters: {}, cafeId: null };
+function readFiltersFromURL(): {
+  filters: Partial<Filters>;
+  cafeId: number | null;
+  meetupLocations: { lat: number; lng: number; label: string }[] | null;
+} {
+  if (typeof window === "undefined") return { filters: {}, cafeId: null, meetupLocations: null };
   const params = new URLSearchParams(window.location.search);
   const filters: Partial<Filters> = {};
   if (params.get("type")) filters.type = params.get("type")!;
@@ -50,7 +55,26 @@ function readFiltersFromURL(): { filters: Partial<Filters>; cafeId: number | nul
   if (params.get("bestFor")) filters.bestFor = params.get("bestFor")!;
   if (params.get("sort")) filters.sort = params.get("sort")!;
   const cafeId = params.get("cafe") ? parseInt(params.get("cafe")!) : null;
-  return { filters, cafeId };
+
+  // Parse meetup locations
+  let meetupLocations: { lat: number; lng: number; label: string }[] | null = null;
+  const meetup = params.get("meetup");
+  if (meetup) {
+    try {
+      meetupLocations = meetup.split("|").map((part) => {
+        const [lat, lng, ...labelParts] = part.split(",");
+        return {
+          lat: parseFloat(lat),
+          lng: parseFloat(lng),
+          label: decodeURIComponent(labelParts.join(",")) || "Location",
+        };
+      });
+    } catch {
+      meetupLocations = null;
+    }
+  }
+
+  return { filters, cafeId, meetupLocations };
 }
 
 function writeFiltersToURL(filters: Filters, selectedCafeId: number | null) {
@@ -81,11 +105,15 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [toast, setToast] = useState({ message: "", visible: false });
   const [urlLoaded, setUrlLoaded] = useState(false);
+  const [showMeetUp, setShowMeetUp] = useState(false);
+  const [meetupInitialLocations, setMeetupInitialLocations] = useState<
+    { lat: number; lng: number; label: string }[] | null
+  >(null);
 
   // Load favorites and URL params on mount
   useEffect(() => {
     setFavoriteIds(getFavorites());
-    const { filters: urlFilters, cafeId } = readFiltersFromURL();
+    const { filters: urlFilters, cafeId, meetupLocations } = readFiltersFromURL();
     if (Object.keys(urlFilters).length > 0) {
       setFilters((prev) => ({ ...prev, ...urlFilters }));
     }
@@ -93,15 +121,19 @@ export default function Home() {
       const cafe = cafes.find((c) => c.id === cafeId);
       if (cafe) setSelectedCafe(cafe);
     }
+    if (meetupLocations && meetupLocations.length >= 2) {
+      setMeetupInitialLocations(meetupLocations);
+      setShowMeetUp(true);
+    }
     setUrlLoaded(true);
   }, []);
 
   // Sync URL when filters or selected cafe change (skip initial load)
   useEffect(() => {
-    if (urlLoaded) {
+    if (urlLoaded && !showMeetUp) {
       writeFiltersToURL(filters, selectedCafe?.id ?? null);
     }
-  }, [filters, selectedCafe, urlLoaded]);
+  }, [filters, selectedCafe, urlLoaded, showMeetUp]);
 
   const handleFilterChange = useCallback((filtered: Cafe[]) => {
     setFilteredCafes(filtered);
@@ -122,7 +154,6 @@ export default function Home() {
 
   const handleNearMe = useCallback(() => {
     if (userLocation) {
-      // Toggle off
       setUserLocation(null);
       setFilters((f) => ({ ...f, sort: "rating" }));
       return;
@@ -152,12 +183,15 @@ export default function Home() {
   }, [filteredCafes]);
 
   // Compute distances
-  const distances = new Map<number, number>();
-  if (userLocation) {
-    cafes.forEach((c) => {
-      distances.set(c.id, haversineKm(userLocation.lat, userLocation.lng, c.lat, c.lng));
-    });
-  }
+  const distances = useMemo(() => {
+    const map = new Map<number, number>();
+    if (userLocation) {
+      cafes.forEach((c) => {
+        map.set(c.id, haversineKm(userLocation.lat, userLocation.lng, c.lat, c.lng));
+      });
+    }
+    return map;
+  }, [userLocation]);
 
   return (
     <div style={{ height: "100dvh", width: "100vw", overflow: "hidden", background: "var(--bg-primary)" }}>
@@ -182,6 +216,7 @@ export default function Home() {
         onNearMe={handleNearMe}
         onSurpriseMe={handleSurpriseMe}
         showToast={showToast}
+        onMeetUp={() => setShowMeetUp(true)}
       />
 
       <div className={`map-container ${collapsed ? "" : ""}`}>
@@ -208,6 +243,33 @@ export default function Home() {
           {filteredCafes.filter((c) => c.type === "restaurant").length} Restaurants
         </p>
       </div>
+
+      {/* Meet Up overlay */}
+      {showMeetUp && (
+        <div className="fixed inset-0 z-40">
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => setShowMeetUp(false)}
+          />
+          <div
+            className="absolute left-0 top-0 bottom-0 overflow-hidden"
+            style={{ width: "min(420px, 100vw)" }}
+          >
+            <MeetUp
+              cafes={cafes}
+              onSelectCafe={(cafe) => {
+                setSelectedCafe(cafe);
+                setShowMeetUp(false);
+                setCollapsed(false);
+              }}
+              onClose={() => setShowMeetUp(false)}
+              showToast={showToast}
+              initialLocations={meetupInitialLocations || undefined}
+            />
+          </div>
+        </div>
+      )}
 
       <Toast message={toast.message} visible={toast.visible} onDone={() => setToast({ message: "", visible: false })} />
     </div>

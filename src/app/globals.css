@@ -11,7 +11,7 @@
   --text-muted: #5a5a72;
   --accent: #f97316;
   --accent-glow: rgba(249, 115, 22, 0.15);
-  --sidebar-width: 360px;
+  --sidebar-width: 380px;
   --radius: 13px;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -33,6 +33,7 @@ body {
   color: var(--text-primary);
   overflow: hidden;
   height: 100dvh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* ==================== SIDEBAR ==================== */
@@ -94,7 +95,7 @@ body {
 
 .leaflet-container {
   background: var(--bg-primary) !important;
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   height: 100%;
   width: 100%;
 }
@@ -185,12 +186,19 @@ body {
 /* ==================== FILTERS ==================== */
 .filter-pills {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+
+.filter-pills::-webkit-scrollbar {
+  display: none;
 }
 
 .filter-pill {
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 500;
@@ -200,6 +208,7 @@ body {
   background: transparent;
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-pill:hover {
@@ -213,11 +222,43 @@ body {
   color: #fff;
 }
 
+/* ==================== FILTER EXPAND ==================== */
+.filter-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+
+.filter-expand-btn:hover {
+  color: var(--text-secondary);
+}
+
+.filter-section-extra {
+  display: none;
+  padding-bottom: 4px;
+}
+
+.filter-section-extra.open {
+  display: block;
+}
+
 /* ==================== MOBILE ==================== */
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
-    height: 55dvh;
+    height: 60dvh;
     top: auto;
     bottom: 0;
     left: 0;
@@ -229,7 +270,7 @@ body {
   }
 
   .sidebar.collapsed {
-    transform: translateY(calc(100% - 56px));
+    transform: translateY(calc(100% - 48px));
   }
 
   .sidebar-toggle {
@@ -247,28 +288,49 @@ body {
   }
 
   .sidebar-drag-handle {
-    display: block;
-    width: 40px;
+    display: block !important;
+    width: 36px;
     height: 4px;
     background: var(--text-muted);
     border-radius: 2px;
-    margin: 10px auto 6px;
+    margin: 8px auto 4px;
   }
 
   .map-container {
     left: 0;
-    bottom: 55dvh;
+    bottom: 60dvh;
     transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .sidebar.collapsed ~ .map-container {
-    bottom: 56px;
+    bottom: 48px;
   }
 
   .vis-badge {
     bottom: auto;
-    top: 12px;
-    right: 12px;
-    padding: 8px 12px;
+    top: 10px;
+    right: 10px;
+    padding: 6px 10px;
+  }
+
+  .vis-badge p {
+    font-size: 10px !important;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 390px) {
+  .sidebar {
+    height: 55dvh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .map-container {
+    bottom: 55dvh;
+  }
+
+  .filter-pill {
+    padding: 3px 8px;
+    font-size: 10px;
   }
 }

@@ -6,9 +6,19 @@ interface CafeCardProps {
   cafe: Cafe;
   isSelected: boolean;
   onClick: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: number) => void;
+  distance?: number;
 }
 
-export default function CafeCard({ cafe, isSelected, onClick }: CafeCardProps) {
+export default function CafeCard({
+  cafe,
+  isSelected,
+  onClick,
+  isFavorite = false,
+  onToggleFavorite,
+  distance,
+}: CafeCardProps) {
   return (
     <div
       onClick={onClick}
@@ -33,15 +43,38 @@ export default function CafeCard({ cafe, isSelected, onClick }: CafeCardProps) {
             >
               {cafe.name}
             </h3>
-            <span
-              className="flex-shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
-              style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}
-            >
-              {cafe.rating}
-            </span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {onToggleFavorite && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(cafe.id);
+                  }}
+                  className="text-sm transition-transform hover:scale-110"
+                  style={{ color: isFavorite ? "#ef4444" : "var(--text-muted)" }}
+                  aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                >
+                  {isFavorite ? "♥" : "♡"}
+                </button>
+              )}
+              <span
+                className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
+                style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}
+              >
+                {cafe.rating}
+              </span>
+            </div>
           </div>
           <p className="mt-0.5 text-[11px] flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
             {cafe.area} · {cafe.priceRange}
+            {distance != null && (
+              <span
+                className="rounded px-1 py-0.5 text-[9px] font-medium"
+                style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80" }}
+              >
+                {distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}
+              </span>
+            )}
             <span
               className="rounded px-1 py-0.5 text-[9px] font-medium"
               style={{

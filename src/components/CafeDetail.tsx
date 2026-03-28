@@ -5,10 +5,59 @@ import { Cafe } from "@/data/cafes";
 interface CafeDetailProps {
   cafe: Cafe;
   onClose: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: number) => void;
+  showToast?: (msg: string) => void;
 }
 
-export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
+export default function CafeDetail({
+  cafe,
+  onClose,
+  isFavorite = false,
+  onToggleFavorite,
+  showToast,
+}: CafeDetailProps) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lng}`;
+
+  const getShareUrl = () => {
+    if (typeof window === "undefined") return "";
+    const url = new URL(window.location.href);
+    url.search = `?cafe=${cafe.id}`;
+    return url.toString();
+  };
+
+  const getShareText = () => {
+    const cuisineStr = cafe.cuisine.slice(0, 2).join(", ");
+    return `Check out ${cafe.name} in ${cafe.area} — ${cafe.rating}⭐ ${cuisineStr}`;
+  };
+
+  const handleShare = async () => {
+    const url = getShareUrl();
+    const text = getShareText();
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: cafe.name, text, url });
+        return;
+      } catch {
+        // User cancelled or not supported, fall through to clipboard
+      }
+    }
+
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(`${text} — ${url}`);
+      showToast?.("Link copied!");
+    } catch {
+      showToast?.("Could not copy link");
+    }
+  };
+
+  const handleWhatsApp = () => {
+    const url = getShareUrl();
+    const text = `${getShareText()} — ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
 
   return (
     <div
@@ -16,13 +65,25 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
       style={{ background: "rgba(7,8,13,0.97)", backdropFilter: "blur(8px)" }}
     >
       <div className="p-4">
-        <button
-          onClick={onClose}
-          className="mb-3 flex items-center gap-1 text-sm transition-colors hover:opacity-80"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          ← Back
-        </button>
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 text-sm transition-colors hover:opacity-80"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            ← Back
+          </button>
+          {onToggleFavorite && (
+            <button
+              onClick={() => onToggleFavorite(cafe.id)}
+              className="text-xl transition-transform hover:scale-110"
+              style={{ color: isFavorite ? "#ef4444" : "var(--text-muted)" }}
+              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              {isFavorite ? "♥" : "♡"}
+            </button>
+          )}
+        </div>
 
         <img
           src={cafe.image}
@@ -75,6 +136,22 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
               </div>
             </DetailRow>
 
+            {cafe.bestFor && cafe.bestFor.length > 0 && (
+              <DetailRow label="Best For">
+                <div className="flex flex-wrap gap-1.5">
+                  {cafe.bestFor.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full px-2.5 py-1 text-xs"
+                      style={{ background: "rgba(249,115,22,0.12)", color: "var(--accent)" }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </DetailRow>
+            )}
+
             <DetailRow label="Service">
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 {cafe.dineInTakeaway === "both"
@@ -94,15 +171,33 @@ export default function CafeDetail({ cafe, onClose }: CafeDetailProps) {
             </DetailRow>
           </div>
 
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-            style={{ background: "var(--accent)" }}
-          >
-            📍 Open in Google Maps
-          </a>
+          {/* Action buttons */}
+          <div className="mt-5 flex gap-2">
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: "var(--accent)" }}
+            >
+              📍 Google Maps
+            </a>
+            <button
+              onClick={handleShare}
+              className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "var(--bg-hover)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            >
+              🔗 Share
+            </button>
+            <button
+              onClick={handleWhatsApp}
+              className="flex items-center justify-center rounded-xl px-3 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366" }}
+              aria-label="Share on WhatsApp"
+            >
+              💬
+            </button>
+          </div>
         </div>
       </div>
     </div>
